@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+.dark-mode { color: #E5E7EB; }
+.dark-mode .text-slate-600 { color: #D6DEE9 !important; }
+.dark-mode .text-slate-500 { color: #B8C4D2 !important; }
+.dark-mode .bg-white, .dark-mode .bg-slate-50 { background: #0f172a !important; }
+.dark-mode .bg-white/80 { background: rgba(15,23,42,.80) !important; }
+.dark-mode .border-slate-200 { border-color: #334155 !important; }
