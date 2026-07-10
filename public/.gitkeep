@@ -1,0 +1,2 @@
+# Mantém o diretório public/ no versionamento para o COPY do Dockerfile.
+# Adicione aqui assets estáticos (favicon, imagens fixas, robots.txt, etc.).

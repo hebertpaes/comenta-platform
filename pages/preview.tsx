@@ -176,6 +176,10 @@ function Hero() {
       <p className="text-slate-600 max-w-prose">
         Next.js no Cloud Run, com Firestore, autenticação segura e Blog otimizado para SEO e crawlers de LLMs.
       </p>
+
+      {/* Carrossel de notícias (prévia — dados fictícios; a versão real puxa o portal ao vivo) */}
+      <PreviewNewsSlider />
+
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         {["Cloud Run + SSL gerenciado","Firestore (ADC)","CI/CD GitHub Actions","Cache via Cloudflare"].map(t => (
           <li key={t} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 bg-white/80">
@@ -187,11 +191,80 @@ function Hero() {
   );
 }
 
+// Slider de notícias da prévia (autossuficiente, sem rede).
+// Reflete o carrossel real (app/components/NewsCarousel.tsx), que em
+// produção puxa as manchetes e imagens reais do portal via API REST.
+const previewNews = [
+  { id: "n1", title: "Mutirão de cirurgias atende 100 pacientes nesta semana", cat: "Saúde", urgent: true, img: STABLE_IMAGES.hp1 },
+  { id: "n2", title: "Cobertura regional atualizada minuto a minuto", cat: "Cidades", urgent: false, img: STABLE_IMAGES.hp2 },
+  { id: "n3", title: "Acompanhe as transmissões ao vivo da redação", cat: "Ao vivo", urgent: false, img: STABLE_IMAGES.hp3 },
+];
+
+function PreviewNewsSlider() {
+  const [i, setI] = React.useState(0);
+  const [playing, setPlaying] = React.useState(true);
+  const hover = React.useRef(false);
+  const n = previewNews.length;
+  React.useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(() => { if (!hover.current) setI(v => (v + 1) % n); }, 6000);
+    return () => clearInterval(t);
+  }, [playing, n]);
+  const cur = previewNews[i];
+  return (
+    <div
+      className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xl"
+      onMouseEnter={() => (hover.current = true)}
+      onMouseLeave={() => (hover.current = false)}
+    >
+      <div className="relative" style={{ aspectRatio: "16 / 10", background: "#0f172a" }}>
+        {previewNews.map((s, idx) => (
+          <img key={s.id} src={s.img} alt={s.title}
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
+            style={{ opacity: idx === i ? 1 : 0 }} />
+        ))}
+        <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+          {cur.urgent
+            ? <span className="bg-slate-900 text-white text-[11px] font-extrabold tracking-wide px-2.5 py-1 rounded-md">URGENTE</span>
+            : <span />}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPlaying(p => !p)} aria-label={playing ? "Pausar" : "Reproduzir"}
+              className="h-8 w-8 rounded-full text-white text-xs inline-flex items-center justify-center"
+              style={{ background: "rgba(15,23,42,.55)" }}>
+              {playing ? "❚❚" : "►"}
+            </button>
+            <div className="flex items-center gap-2">
+              {previewNews.map((s, idx) => (
+                <button key={s.id} onClick={() => setI(idx)} aria-label={`Slide ${idx + 1}`}
+                  className="h-3 w-3 rounded-full border-2 border-white"
+                  style={{ background: idx === i ? "#34d399" : "transparent", borderColor: idx === i ? "#34d399" : "#fff" }} />
+              ))}
+            </div>
+          </div>
+        </div>
+        <button onClick={() => setI(v => (v - 1 + n) % n)} aria-label="Anterior"
+          className="absolute left-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full text-white text-2xl inline-flex items-center justify-center"
+          style={{ background: "rgba(15,23,42,.55)" }}>‹</button>
+        <button onClick={() => setI(v => (v + 1) % n)} aria-label="Próxima"
+          className="absolute right-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full text-white text-2xl inline-flex items-center justify-center"
+          style={{ background: "rgba(15,23,42,.55)" }}>›</button>
+      </div>
+      <div className="p-4">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-sky-600">{cur.cat}</span>
+        <h3 className="mt-1 font-bold leading-tight" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(18px,2vw,24px)" }}>
+          {cur.title}
+        </h3>
+        <p className="mt-2 text-xs text-slate-500">Prévia — a versão publicada exibe as notícias e fotos reais do portal.</p>
+      </div>
+    </div>
+  );
+}
+
 // ======= Cache UX (Prévia) =======
 const CacheContext = React.createContext<{state: 'miss'|'hit'|'refresh', set:(s:'miss'|'hit'|'refresh')=>void}>({state:'hit', set: () => {}});
 
 function CacheBanner() {
-  const [state, setState] = React.useState('hit');
+  const [state, setState] = React.useState<'miss'|'hit'|'refresh'>('hit');
   // Simula SWR: carrega do cache -> atualiza em background -> pronto
   React.useEffect(() => {
     // inicia como hit (conteúdo do cache)
@@ -785,4 +858,19 @@ function PostCard({ post }: { post: { slug: string; title: string; excerpt?: str
             decoding="async"
             referrerPolicy="no-referrer"
             onError={(e)=>{ (e.currentTarget as HTMLImageElement).src = PLACEHOLDER_DATA_URL; }}
-            className="w-full h-full object-cov
+            className="w-full h-full object-cover"
+          />
+        </a>
+      ) : (
+        <div className="aspect-[16/9] bg-slate-100" />
+      )}
+      <div className="p-4">
+        <h3 className="font-semibold leading-snug">
+          <a href="#" onClick={(e)=>e.preventDefault()} className="no-underline hover:underline">{post.title}</a>
+        </h3>
+        {post.excerpt && <p className="mt-2 text-sm text-slate-600">{post.excerpt}</p>}
+        <time className="post-date mt-3 block text-xs text-slate-500">{dateStr}</time>
+      </div>
+    </article>
+  );
+}
