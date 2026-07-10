@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.gitignore
+Dockerfile
+.dockerignore
+deploy
+npm-debug.log*
+.DS_Store
+*.md

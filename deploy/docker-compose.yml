@@ -1,0 +1,95 @@
+# =============================================================
+# Deploy unificado — TODOS os produtos Comenta em um único VPS
+# =============================================================
+# Sobe: site (comenta.com.br) + API (api.comenta.com.br) + painel
+# (app.comenta.com.br) + Postgres + Redis.
+#
+# Layout esperado (os dois repositórios lado a lado):
+#   <base>/comenta-platform   (este repo — site + este deploy)
+#   <base>/comenta            (repo do SaaS — saas/api, saas/web)
+#
+# Rode a partir de comenta-platform/deploy/:
+#   cp .env.example .env   # e preencha os segredos
+#   # build do painel (Vite) uma vez, antes de subir:
+#   (cd ../../comenta/saas/web && npm ci && VITE_API_URL=https://api.comenta.com.br npm run build)
+#   docker compose --env-file .env up -d --build
+#
+# As portas ficam expostas só em 127.0.0.1 — o Nginx do host (com TLS)
+# publica os domínios. Veja nginx/comenta.conf e o RUNBOOK.md.
+
+name: comenta
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: comenta
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+      POSTGRES_DB: comenta_saas
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comenta"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}"]
+    volumes:
+      - redis_data:/data
+
+  # API do SaaS (repo comenta → saas/api) — porta 4000
+  api:
+    build:
+      context: ../../comenta/saas/api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      APP_URL: https://app.comenta.com.br
+      API_URL: https://api.comenta.com.br
+      DATABASE_URL: postgresql://comenta:${DB_PASSWORD}@postgres:5432/comenta_saas
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?defina JWT_REFRESH_SECRET no .env}
+      CORS_ORIGINS: https://app.comenta.com.br
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_MODEL_CLASSIFY: ${AI_MODEL_CLASSIFY:-claude-haiku-4-5}
+      AI_MODEL_SUMMARIZE: ${AI_MODEL_SUMMARIZE:-claude-haiku-4-5}
+      AI_MODEL_SUGGEST: ${AI_MODEL_SUGGEST:-claude-sonnet-5}
+    # aplica migrações + seed e inicia
+    command: sh -c "npx drizzle-kit push --force && npx tsx src/db/seed.ts && npx tsx src/index.ts"
+    ports:
+      - "127.0.0.1:4000:4000"
+
+  # Site institucional / plataforma (este repo) — porta 3000
+  site:
+    build:
+      context: ..
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_NEWS_SOURCE: ${NEXT_PUBLIC_NEWS_SOURCE:-https://hojemt.com.br}
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  # Painel React do SaaS (build estático de comenta/saas/web) — porta 8080
+  panel:
+    image: nginx:1.27-alpine
+    restart: always
+    volumes:
+      - ../../comenta/saas/web/dist:/usr/share/nginx/html:ro
+    ports:
+      - "127.0.0.1:8080:80"
+
+volumes:
+  pg_data:
+  redis_data:
