@@ -12,6 +12,23 @@ Os serviços escutam só em `127.0.0.1`; o **Nginx do host** (com TLS via Let's 
 
 ---
 
+## Instalação automática (1 comando)
+
+Com o **DNS já apontando** para o VPS (passo 1 abaixo), rode como root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hebertpaes/comenta-platform/claude/project-creation-az9g99/deploy/bootstrap.sh \
+  | sudo DOMAIN=comenta.com.br [email protected] bash
+```
+
+O `bootstrap.sh` instala Docker/Nginx/Certbot, clona os dois repos, builda o
+painel, sobe os containers, configura o Nginx e emite o SSL — tudo de uma vez.
+Passe `SKIP_SSL=1` para pular o certbot enquanto o DNS não propagou.
+
+Para fazer passo a passo (ou entender o que o script faz), siga as seções abaixo.
+
+---
+
 ## 0. Pré-requisitos
 
 - Um **VPS** (Ubuntu 22.04+ recomendado) com IP público.
