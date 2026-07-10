@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 type Consent = "unknown" | "accepted" | "declined";
-type Phase = "bot" | "fila" | "queue" | "agent";
+type Phase = "inicio" | "bot" | "fila" | "queue" | "agent";
 type From = "bot" | "user" | "agent" | "system";
 type Msg = { id: number; from: From; text: string; author?: string; cta?: { label: string; href: string } };
 
@@ -23,6 +23,7 @@ const FILAS = [
   { id: "suporte", nome: "Suporte", emoji: "🛟", agents: ["Camila", "Diego"] },
   { id: "vendas", nome: "Vendas", emoji: "💼", agents: ["Priscila", "Marcos"] },
   { id: "financeiro", nome: "Financeiro", emoji: "💳", agents: ["Rafaela"] },
+  { id: "marketing", nome: "Marketing", emoji: "📣", agents: ["Letícia", "Bruno"] },
 ];
 const TOTAL_AGENTS = FILAS.reduce((n, f) => n + f.agents.length, 0);
 
@@ -55,7 +56,7 @@ export default function EngagementDock() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
 
-  const [phase, setPhase] = useState<Phase>("bot");
+  const [phase, setPhase] = useState<Phase>("inicio");
   const [fila, setFila] = useState<(typeof FILAS)[number] | null>(null);
   const [agent, setAgent] = useState<string | null>(null);
   const [queuePos, setQueuePos] = useState(0);
@@ -96,11 +97,18 @@ export default function EngagementDock() {
     if (greeted.current) return;
     greeted.current = true;
     setOpen(true);
-    say({ id: nid(), from: "bot", text: "Olá! 👋 Sou o assistente do Comenta. Posso resolver por aqui ou te levar a um atendente. Como posso ajudar?" }, 600);
+    setPhase("inicio");
+    say({ id: nid(), from: "bot", text: "Olá! 👋 Sou o assistente do Comenta. Você quer falar com a IA ou com um humano?" }, 600);
   }, [say]);
 
   const accept = () => { persist("accepted"); setConsent("accepted"); later(startConversation, 800); };
   const decline = () => { persist("declined"); setConsent("declined"); };
+
+  // ---- escolha inicial: IA ou humano ----
+  const falarComIA = () => {
+    setPhase("bot");
+    say({ id: nid(), from: "bot", text: "Perfeito! Sou a IA do Comenta ✨. Me pergunte o que quiser — planos, como a IA funciona, começar — ou peça um atendente quando quiser." }, 500);
+  };
 
   // ---- fluxo de atendimento ----
   const pedirFila = () => {
@@ -278,6 +286,12 @@ export default function EngagementDock() {
 
               {/* ações rápidas conforme a fase */}
               <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-white px-3 pt-3">
+                {phase === "inicio" && (
+                  <>
+                    <button onClick={falarComIA} className="qr border-fuchsia-300 text-fuchsia-700">Falar com a IA ✨</button>
+                    <button onClick={pedirFila} className="qr">Falar com um humano 🧑‍💼</button>
+                  </>
+                )}
                 {phase === "bot" && (
                   <>
                     <button onClick={() => say(botAnswer("planos"), 600)} className="qr">Ver planos 💳</button>
