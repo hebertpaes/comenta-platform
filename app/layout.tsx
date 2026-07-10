@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import EngagementDock from "./components/EngagementDock";
 
 export const metadata: Metadata = {
   title: "Comenta — Atendimento multicanal com IA",
@@ -20,7 +21,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        {children}
+        <EngagementDock />
+      </body>
     </html>
   );
 }
